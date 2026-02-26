@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "demo": "node demo/run-demo.js",
-    "demo:live": "node demo/run-demo.js"
+    "demo:live": "node demo/run-demo.js",
+    "starknet:doctor": "node scripts/starknet/doctor.js",
+    "starknet:deploy": "node scripts/starknet/deploy-nexus.js",
+    "starknet:register": "node scripts/starknet/register-capability.js",
+    "starknet:proof": "node scripts/starknet/submit-proof.js"
   },
   "dependencies": {
     "bitcoinjs-lib": "^7.0.1",

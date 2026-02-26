@@ -94,6 +94,32 @@ Optional live switch (with configured `.env`):
 
 ---
 
+## Real On-Chain Flow (Starknet Sepolia)
+
+1. Fill `.env`:
+   - `STAN_NEXUS_MODE=chain`
+   - `STARKNET_RPC_URL` (Sepolia RPC)
+   - `STARKNET_ACCOUNT_ADDRESS`
+   - `STARKNET_PRIVATE_KEY`
+   - `STARKNET_NEXUS_CONTRACT_ADDRESS` (after deployment)
+2. Run health check:
+   - `npm run starknet:doctor`
+3. Register seller capability root on-chain:
+   - `npm run starknet:register`
+4. Submit execution proof on-chain:
+   - `npm run starknet:proof`
+
+Deployment command (requires compiled artifacts):
+
+- `npm run starknet:deploy`
+- Artifact paths expected by deploy script:
+  - `contracts/artifacts/nexus.contract_class.json`
+  - `contracts/artifacts/nexus.compiled_contract_class.json`
+
+Note: Cairo compiler toolchain is required to generate these artifacts.
+
+---
+
 ## Current Repository Layout
 
 - `contracts/nexus.cairo`: Cairo Nexus contract scaffold for capability roots and proof status
@@ -107,6 +133,7 @@ Optional live switch (with configured `.env`):
 - `services/settlement-btc/index.js`: Bitcoin testnet/regtest 2-of-2 P2WSH escrow builder
 - `services/settlement/index.js`: settlement adapter factory (sim or btc)
 - `config/index.js`: environment-driven runtime configuration
+- `scripts/starknet/*.js`: on-chain doctor, deploy, register, and proof scripts
 - `demo/run-demo.js`: end-to-end Silicon Handshake demo runner
 - `AI.md`: persistent architecture context and implementation constraints
 

@@ -172,3 +172,8 @@ Keep this section updated as answers arrive.
 - Runtime now supports **chain adapters** (Starknet Sepolia + Bitcoin testnet builder) with mock fallbacks.
 - Encrypted handshake is implemented as payload encryption between buyer and seller identities.
 - This is optimized for hackathon judging narrative and live demo reliability.
+
+### Current On-Chain Status
+
+- On-chain transaction scripts are available under `scripts/starknet/`.
+- Missing local Cairo toolchain (`scarb`/`sncast`/`starkli`) currently blocks contract compilation and first deployment on this machine.
