@@ -176,4 +176,5 @@ Keep this section updated as answers arrive.
 ### Current On-Chain Status
 
 - On-chain transaction scripts are available under `scripts/starknet/`.
-- Missing local Cairo toolchain (`scarb`/`sncast`/`starkli`) currently blocks contract compilation and first deployment on this machine.
+- Cairo toolchain is available in WSL (`scarb` + `sncast`) for compile/deploy flows.
+- A React demo console (`app/`) and local API server (`server/`) now drive live on-chain demo execution.

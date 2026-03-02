@@ -6,9 +6,7 @@ mod Nexus {
 
     #[storage]
     struct Storage {
-        // Maps agent account to the committed capability root hash.
         capability_roots: Map::<ContractAddress, felt252>,
-        // Tracks whether a proof hash has been accepted by the Nexus.
         verified_proofs: Map::<felt252, bool>,
     }
 
@@ -51,9 +49,6 @@ mod Nexus {
     ) {
         let registered_root = self.capability_roots.read(agent);
         assert(registered_root == expected_capability_root, 'CAPABILITY_ROOT_MISMATCH');
-
-        // TODO: wire the actual STARK verifier syscall integration.
-        // For hackathon scaffold, the proof hash acts as the verification artifact.
         assert(proof_hash != 0, 'INVALID_PROOF_HASH');
 
         self.verified_proofs.write(proof_hash, true);

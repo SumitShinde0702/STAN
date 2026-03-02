@@ -7,16 +7,33 @@
   "scripts": {
     "demo": "node demo/run-demo.js",
     "demo:live": "node demo/run-demo.js",
+    "api": "node server/index.js",
+    "web": "vite",
+    "dev": "concurrently \"npm run api\" \"npm run web\"",
+    "build:web": "vite build",
+    "preview:web": "vite preview",
+    "starknet:build": "scarb build",
+    "starknet:prepare-artifacts": "node scripts/starknet/prepare-artifacts.js",
     "starknet:doctor": "node scripts/starknet/doctor.js",
     "starknet:deploy": "node scripts/starknet/deploy-nexus.js",
     "starknet:register": "node scripts/starknet/register-capability.js",
-    "starknet:proof": "node scripts/starknet/submit-proof.js"
+    "starknet:proof": "node scripts/starknet/submit-proof.js",
+    "deepseek:test": "node scripts/deepseek/test.js"
   },
   "dependencies": {
     "bitcoinjs-lib": "^7.0.1",
+    "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "ecpair": "^3.0.1",
+    "express": "^5.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "starknet": "^9.2.1",
     "tiny-secp256k1": "^2.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.4",
+    "concurrently": "^9.2.1",
+    "vite": "^7.3.1"
   }
 }

@@ -1,0 +1,1 @@
+{"version":1,"contracts":[{"id":"n1t7tp39lpb16","package_name":"stan_nexus","contract_name":"Nexus","module_path":"stan_nexus::Nexus","artifacts":{"sierra":"stan_nexus_Nexus.contract_class.json","casm":"stan_nexus_Nexus.compiled_contract_class.json"}}]}

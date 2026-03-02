@@ -86,6 +86,13 @@ It is the **Central Nervous System of the Agentic Internet**.
 - Run `npm run demo`
 - Observe the flow: capability registration -> encrypted handshake -> proof verification -> escrow release
 
+React demo console:
+
+- Run `npm run dev`
+- Open `http://localhost:5173`
+- Click **Run Silicon Handshake** to trigger live API-backed flow
+- Optional: click **Agent Discussion** first to simulate buyer/seller negotiation (DeepSeek-backed if `DEEPSEEK_API_KEY` is set)
+
 Optional live switch (with configured `.env`):
 
 - Set `STAN_NEXUS_MODE=chain` to use Starknet Sepolia
@@ -96,6 +103,12 @@ Optional live switch (with configured `.env`):
 
 ## Real On-Chain Flow (Starknet Sepolia)
 
+Free RPC options (pick one):
+
+- `https://starknet-sepolia.drpc.org`
+- `https://starknet-sepolia.public.blastapi.io`
+- `https://free-rpc.nethermind.io/sepolia-juno`
+
 1. Fill `.env`:
    - `STAN_NEXUS_MODE=chain`
    - `STARKNET_RPC_URL` (Sepolia RPC)
@@ -104,19 +117,36 @@ Optional live switch (with configured `.env`):
    - `STARKNET_NEXUS_CONTRACT_ADDRESS` (after deployment)
 2. Run health check:
    - `npm run starknet:doctor`
-3. Register seller capability root on-chain:
+3. Compile Cairo contract + prepare deployment artifacts:
+   - `npm run starknet:build`
+   - `npm run starknet:prepare-artifacts`
+4. Deploy Nexus contract:
+   - `npm run starknet:deploy`
+   - Copy printed contract address into `STARKNET_NEXUS_CONTRACT_ADDRESS`
+5. Register seller capability root on-chain:
    - `npm run starknet:register`
-4. Submit execution proof on-chain:
+6. Submit execution proof on-chain:
    - `npm run starknet:proof`
 
-Deployment command (requires compiled artifacts):
+### Toolchain Setup (Windows Fast Path)
 
-- `npm run starknet:deploy`
-- Artifact paths expected by deploy script:
-  - `contracts/artifacts/nexus.contract_class.json`
-  - `contracts/artifacts/nexus.compiled_contract_class.json`
+Use WSL (Ubuntu) for Cairo tooling:
 
-Note: Cairo compiler toolchain is required to generate these artifacts.
+1. Open PowerShell (Admin) and install WSL:
+   - `wsl --install -d Ubuntu`
+2. Open Ubuntu terminal and install Starkup:
+   - `curl --proto '=https' --tlsv1.2 -sSf https://sh.starkup.sh | sh`
+   - `source ~/.bashrc`
+   - `starkup`
+3. Verify:
+   - `scarb --version`
+   - `sncast --version`
+4. In WSL, switch to project:
+   - `cd /mnt/c/Users/sumit/OneDrive/Desktop/STAN`
+
+Faucet:
+
+- Request Sepolia test tokens from `https://faucet.starknet.io/`
 
 ---
 
@@ -134,6 +164,8 @@ Note: Cairo compiler toolchain is required to generate these artifacts.
 - `services/settlement/index.js`: settlement adapter factory (sim or btc)
 - `config/index.js`: environment-driven runtime configuration
 - `scripts/starknet/*.js`: on-chain doctor, deploy, register, and proof scripts
+- `server/index.js`: local API for live run orchestration
+- `app/*`: React UI for judge-facing live demo
 - `demo/run-demo.js`: end-to-end Silicon Handshake demo runner
 - `AI.md`: persistent architecture context and implementation constraints
 

@@ -1,10 +1,34 @@
 import { Account, RpcProvider } from "starknet";
 import { verifyExecutionProof } from "../prover-mock/index.js";
 
-function asFeltHex(value) {
-  if (typeof value !== "string") return `0x${BigInt(value).toString(16)}`;
-  if (value.startsWith("0x")) return value;
-  return `0x${value}`;
+// Starknet field prime for felt252 normalization.
+const FELT_PRIME =
+  (2n ** 251n) + (17n * (2n ** 192n)) + 1n;
+
+function stripHexPrefix(value) {
+  return value.startsWith("0x") ? value.slice(2) : value;
+}
+
+function toFeltHex(value) {
+  if (typeof value === "bigint") {
+    const normalized = ((value % FELT_PRIME) + FELT_PRIME) % FELT_PRIME;
+    return `0x${normalized.toString(16)}`;
+  }
+
+  if (typeof value === "number") {
+    return toFeltHex(BigInt(value));
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "0x0";
+    if (/^[0-9]+$/.test(trimmed)) return toFeltHex(BigInt(trimmed));
+    if (/^(0x)?[0-9a-fA-F]+$/.test(trimmed)) {
+      return toFeltHex(BigInt(`0x${stripHexPrefix(trimmed)}`));
+    }
+  }
+
+  throw new Error(`Cannot convert value to felt: ${String(value)}`);
 }
 
 export class NexusChain {
@@ -17,7 +41,14 @@ export class NexusChain {
     this.contractAddress = contractAddress;
     this.provider = new RpcProvider({ nodeUrl: rpcUrl });
     this.account =
-      accountAddress && privateKey ? new Account(this.provider, accountAddress, privateKey) : null;
+      accountAddress && privateKey
+        ? new Account({
+            provider: this.provider,
+            address: accountAddress,
+            signer: privateKey,
+            cairoVersion: "1",
+          })
+        : null;
   }
 
   async registerCapabilityRoot({ capabilityRoot }) {
@@ -28,7 +59,7 @@ export class NexusChain {
     const tx = await this.account.execute({
       contractAddress: this.contractAddress,
       entrypoint: "register_capability_root",
-      calldata: [asFeltHex(capabilityRoot)],
+      calldata: [toFeltHex(capabilityRoot)],
     });
     await this.provider.waitForTransaction(tx.transaction_hash);
 
@@ -51,9 +82,9 @@ export class NexusChain {
       contractAddress: this.contractAddress,
       entrypoint: "submit_execution_proof",
       calldata: [
-        asFeltHex(agentId),
-        asFeltHex(proof.proofHash),
-        asFeltHex(expectedCapabilityRoot),
+        toFeltHex(agentId),
+        toFeltHex(proof.proofHash),
+        toFeltHex(expectedCapabilityRoot),
       ],
     });
     await this.provider.waitForTransaction(tx.transaction_hash);
@@ -71,8 +102,18 @@ export class NexusChain {
     const result = await this.provider.callContract({
       contractAddress: this.contractAddress,
       entrypoint: "is_proof_verified",
-      calldata: [asFeltHex(proofHash)],
+      calldata: [toFeltHex(proofHash)],
     });
-    return result?.result?.[0] === "0x1" || result?.result?.[0] === "1";
+    const raw = Array.isArray(result)
+      ? result[0]
+      : Array.isArray(result?.result)
+        ? result.result[0]
+        : result?.result?.[0];
+
+    if (raw === true || raw === false) return raw;
+    if (typeof raw === "bigint") return raw === 1n;
+    if (typeof raw === "number") return raw === 1;
+    if (typeof raw === "string") return raw === "0x1" || raw === "1";
+    return false;
   }
 }
