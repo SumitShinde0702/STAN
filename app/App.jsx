@@ -51,6 +51,7 @@ export default function App() {
   const [discussionCommitment, setDiscussionCommitment] = useState("");
   const [discussionSource, setDiscussionSource] = useState("fallback");
   const [autoRunAfterDiscussion, setAutoRunAfterDiscussion] = useState(true);
+  const [autoBroadcastBtc, setAutoBroadcastBtc] = useState(false);
   const [loading, setLoading] = useState(false);
   const [discussionLoading, setDiscussionLoading] = useState(false);
   const [error, setError] = useState("");
@@ -78,6 +79,7 @@ export default function App() {
           task: liveTask,
           discussion: liveDiscussion,
           discussionCommitment: liveCommitment,
+          autoBroadcastBtc,
         }),
       });
       const data = await response.json();
@@ -124,7 +126,7 @@ export default function App() {
   const hasCommitment = discussionCommitment.length > 0;
   const hasProofSubmission = Boolean(result?.verification?.txHash || result?.proofStatus);
   const nexusVerified = result?.proofStatus === "VERIFIED";
-  const settlementReleased = ["RELEASED", "SIGNED_TX_READY", "READY_TO_RELEASE"].includes(
+  const settlementReleased = ["RELEASED", "SIGNED_TX_READY", "READY_TO_RELEASE", "BROADCASTED"].includes(
     result?.settlement?.state || "",
   );
   const stageStatus = FLOW_STAGES.map((name, idx) => {
@@ -197,6 +199,15 @@ export default function App() {
             onChange={(e) => setAutoRunAfterDiscussion(e.target.checked)}
           />
           <span>Auto-run handshake after discussion</span>
+        </label>
+        <label className="toggle-row" htmlFor="auto-broadcast">
+          <input
+            id="auto-broadcast"
+            type="checkbox"
+            checked={autoBroadcastBtc}
+            onChange={(e) => setAutoBroadcastBtc(e.target.checked)}
+          />
+          <span>Auto-broadcast BTC tx after verification (requires BTC mode and UTXO data)</span>
         </label>
         <div className="status-flow">
           {stageStatus.map((stage) => (
@@ -294,6 +305,20 @@ export default function App() {
                 <code>{result.settlement.p2wshAddress}</code>
               </div>
             ) : null}
+            {result.settlement.releaseTxId ? (
+              <div className="kv">
+                <span>BTC TxID</span>
+                {result.settlement.releaseTxUrl ? (
+                  <a href={result.settlement.releaseTxUrl} target="_blank" rel="noreferrer">
+                    {result.settlement.releaseTxId.slice(0, 12)}...{result.settlement.releaseTxId.slice(-8)}
+                  </a>
+                ) : (
+                  <code>{result.settlement.releaseTxId}</code>
+                )}
+              </div>
+            ) : null}
+            {result.settlement.releaseHint ? <p>{result.settlement.releaseHint}</p> : null}
+            {result.settlement.broadcastError ? <p className="error">{result.settlement.broadcastError}</p> : null}
           </Section>
 
           <Section title="Task Output Artifact">

@@ -28,6 +28,11 @@ export function getConfig() {
       fundingVout: process.env.BTC_FUNDING_VOUT ?? "",
       fundingValueSats: process.env.BTC_FUNDING_VALUE_SATS ?? "",
       feeSats: Number.parseInt(process.env.BTC_FEE_SATS ?? "1500", 10),
+      broadcastUrl:
+        process.env.BTC_BROADCAST_URL ??
+        (process.env.BTC_NETWORK === "regtest"
+          ? "http://127.0.0.1:30000/tx"
+          : "https://mempool.space/testnet/api/tx"),
     },
   };
 }

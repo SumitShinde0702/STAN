@@ -16,12 +16,25 @@ function asNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function asBigInt(value, fallback = 0n) {
+  try {
+    if (typeof value === "bigint") return value;
+    if (typeof value === "number") return BigInt(Math.trunc(value));
+    const normalized = `${value}`.trim();
+    if (!normalized) return fallback;
+    return BigInt(normalized);
+  } catch {
+    return fallback;
+  }
+}
+
 export class BitcoinSettlementService {
   constructor(config) {
     this.networkName = config.bitcoin.network;
     this.network = getNetwork(this.networkName);
     this.escrows = new Map();
     this.defaultFeeSats = config.bitcoin.feeSats;
+    this.broadcastUrl = config.bitcoin.broadcastUrl;
   }
 
   createEscrow({ escrowId, satoshis, buyerPubkeyHex, sellerPubkeyHex, proofHash }) {
@@ -82,11 +95,11 @@ export class BitcoinSettlementService {
     const buyerPair = ECPair.fromWIF(buyerWif, this.network);
     const sellerPair = ECPair.fromWIF(sellerWif, this.network);
     const witnessScript = Buffer.from(escrow.witnessScriptHex, "hex");
-    const spendFee = asNumber(feeSats, this.defaultFeeSats);
-    const inputValue = asNumber(fundingValueSats);
+    const spendFee = asBigInt(feeSats, BigInt(this.defaultFeeSats));
+    const inputValue = asBigInt(fundingValueSats, 0n);
     const outputValue = inputValue - spendFee;
 
-    if (outputValue <= 0) {
+    if (outputValue <= 0n) {
       throw new Error("Funding value must be greater than fee");
     }
 
@@ -116,8 +129,41 @@ export class BitcoinSettlementService {
       state: "SIGNED_TX_READY",
       releasedAt: new Date().toISOString(),
       releaseTxHex: txHex,
+      releaseTxId: null,
     };
     this.escrows.set(escrowId, released);
     return released;
+  }
+
+  async broadcastSignedTransaction({ escrowId, txHex }) {
+    const escrow = this.escrows.get(escrowId);
+    if (!txHex) {
+      throw new Error("Missing signed tx hex for broadcast");
+    }
+    if (!this.broadcastUrl) {
+      throw new Error("Missing BTC broadcast URL");
+    }
+
+    const response = await fetch(this.broadcastUrl, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: txHex,
+    });
+    const body = await response.text();
+    if (!response.ok) {
+      throw new Error(`BTC broadcast failed (${response.status}): ${body}`);
+    }
+
+    const txid = body.trim().replace(/^"|"$/g, "");
+    const explorerBase =
+      this.networkName === "regtest" ? null : "https://mempool.space/testnet/tx";
+    const update = {
+      ...(escrow || {}),
+      state: "BROADCASTED",
+      releaseTxId: txid,
+      releaseTxUrl: explorerBase ? `${explorerBase}/${txid}` : null,
+    };
+    this.escrows.set(escrowId, update);
+    return update;
   }
 }

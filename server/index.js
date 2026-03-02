@@ -127,6 +127,7 @@ app.post("/api/live/run", async (req, res) => {
       task: req.body?.task,
       discussion: req.body?.discussion,
       discussionCommitment: req.body?.discussionCommitment,
+      autoBroadcastBtc: req.body?.autoBroadcastBtc,
     });
     res.json({ ok: true, result });
   } catch (error) {

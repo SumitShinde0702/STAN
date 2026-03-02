@@ -1,9 +1,15 @@
 import crypto from "node:crypto";
+import * as bitcoin from "bitcoinjs-lib";
+import * as ecc from "tiny-secp256k1";
+import { ECPairFactory } from "ecpair";
 import { getConfig } from "../config/index.js";
 import { createAgentIdentity, decryptBuyerRequest, encryptForSeller } from "../services/handshake/index.js";
 import { createNexusClient } from "../services/nexus/index.js";
 import { ProverAdapter } from "../services/prover-adapter/index.js";
 import { createSettlementClient } from "../services/settlement/index.js";
+
+bitcoin.initEccLib(ecc);
+const ECPair = ECPairFactory(ecc);
 
 function hashHex(input) {
   return crypto.createHash("sha256").update(input).digest("hex");
@@ -61,9 +67,44 @@ function txUrl(txHash) {
   return `https://sepolia.voyager.online/tx/${txHash}`;
 }
 
+function getBitcoinNetwork(name) {
+  if (name === "regtest") return bitcoin.networks.regtest;
+  return bitcoin.networks.testnet;
+}
+
+function resolveEscrowPubkeys(config, buyerIdentity, sellerIdentity) {
+  if (config.btcMode !== "btc") {
+    return {
+      buyerPubkeyHex: buyerIdentity.publicKeyHex,
+      sellerPubkeyHex: sellerIdentity.publicKeyHex,
+      source: "ephemeral-demo-identities",
+    };
+  }
+
+  const buyerWif = config.bitcoin.buyerWif;
+  const sellerWif = config.bitcoin.sellerWif;
+  if (!buyerWif || !sellerWif) {
+    return {
+      buyerPubkeyHex: buyerIdentity.publicKeyHex,
+      sellerPubkeyHex: sellerIdentity.publicKeyHex,
+      source: "ephemeral-fallback-missing-wif",
+    };
+  }
+
+  const network = getBitcoinNetwork(config.bitcoin.network);
+  const buyerPair = ECPair.fromWIF(buyerWif, network);
+  const sellerPair = ECPair.fromWIF(sellerWif, network);
+  return {
+    buyerPubkeyHex: Buffer.from(buyerPair.publicKey).toString("hex"),
+    sellerPubkeyHex: Buffer.from(sellerPair.publicKey).toString("hex"),
+    source: "wif-derived",
+  };
+}
+
 export async function executeSiliconHandshake(options = {}) {
   const task = options.task || "private-ml-inference";
   const discussion = options.discussion || [];
+  const autoBroadcastBtc = Boolean(options.autoBroadcastBtc);
   const discussionCommitment =
     options.discussionCommitment || (discussion.length > 0 ? hashHex(JSON.stringify(discussion)) : null);
 
@@ -155,14 +196,15 @@ export async function executeSiliconHandshake(options = {}) {
   });
 
   const settlement = createSettlementClient(config);
+  const escrowKeys = resolveEscrowPubkeys(config, buyer, seller);
   const escrow = settlement.createEscrow({
     escrowId: "escrow-001",
     satoshis: 90_000,
     buyer: buyer.label,
     seller: seller.label,
     proofHash: proof.proofHash,
-    buyerPubkeyHex: buyer.publicKeyHex,
-    sellerPubkeyHex: seller.publicKeyHex,
+    buyerPubkeyHex: escrowKeys.buyerPubkeyHex,
+    sellerPubkeyHex: escrowKeys.sellerPubkeyHex,
   });
 
   const verifyReadStart = Date.now();
@@ -172,7 +214,7 @@ export async function executeSiliconHandshake(options = {}) {
   });
 
   const settleStart = Date.now();
-  const released = settlement.releaseEscrow({
+  let released = settlement.releaseEscrow({
     escrowId: escrow.escrowId,
     isProofVerified,
     destinationAddress: config.bitcoin.destinationAddress,
@@ -187,17 +229,46 @@ export async function executeSiliconHandshake(options = {}) {
     settlementState: released.state,
   });
 
+  if (
+    autoBroadcastBtc &&
+    released?.state === "SIGNED_TX_READY" &&
+    released?.releaseTxHex &&
+    typeof settlement.broadcastSignedTransaction === "function"
+  ) {
+    const broadcastStart = Date.now();
+    try {
+      released = await settlement.broadcastSignedTransaction({
+        escrowId: escrow.escrowId,
+        txHex: released.releaseTxHex,
+      });
+      pushStep("Broadcast BTC release transaction", broadcastStart, {
+        btcTxId: released?.releaseTxId || null,
+        description: "Published signed BTC transaction to testnet mempool.",
+      });
+    } catch (error) {
+      pushStep("Broadcast BTC release transaction", broadcastStart, {
+        description: `Broadcast failed: ${error.message}`,
+      });
+      released = {
+        ...released,
+        broadcastError: error.message,
+      };
+    }
+  }
+
   return {
     modes,
     runtime: {
       sellerAgentId,
       nexusContractAddress: config.starknet.contractAddress || null,
+      escrowKeySource: escrowKeys.source,
     },
     taskContext: {
       task,
       discussionCommitment: inputCommitment,
       outputCommitment,
       discussionMessageCount: discussion.length,
+      autoBroadcastBtc,
     },
     taskOutput,
     registerResult: {

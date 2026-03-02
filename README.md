@@ -92,6 +92,7 @@ React demo console:
 - Open `http://localhost:5173`
 - Click **Run Silicon Handshake** to trigger live API-backed flow
 - Optional: click **Agent Discussion** first to simulate buyer/seller negotiation (DeepSeek-backed if `DEEPSEEK_API_KEY` is set)
+- For real BTC payment path, set `STAN_BTC_MODE=btc`, fill BTC UTXO/WIF env vars, and enable **Auto-broadcast BTC tx** in UI.
 
 Optional live switch (with configured `.env`):
 
